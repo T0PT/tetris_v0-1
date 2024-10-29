@@ -1,12 +1,14 @@
 use crossterm::{
     cursor, event::{Event, KeyCode, KeyEventKind},
     execute, 
-    style::Print, 
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen}, 
     ExecutableCommand, QueueableCommand
 };
 use std::{io::{stdout, Write}, vec};
 use std::time::{Duration, Instant};
+
+static FIELD_WIDTH: usize = 10;
+static FIELD_HEIGHT: usize = 20;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode()?;
@@ -15,10 +17,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stdout = stdout();
     stdout.execute(cursor::MoveTo(0, 0))?;
 
-    let row: Vec<i8> = vec![0; 10];
-    let mut grid: Vec<Vec<i8>>  = vec![row; 20];
+    let row: Vec<i8> = vec![0; FIELD_WIDTH];
+    let mut grid: Vec<Vec<i8>>  = vec![row; FIELD_HEIGHT];
 
     grid[3][3] = 2;
+    grid[5][5] = 2;
+    grid[5][6] = 2;
+    grid[19] = vec![1; FIELD_WIDTH];
+    grid[18][9] = 1;
     print_grid(grid.clone());
 
     let mut last_time = Instant::now();
@@ -53,6 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     if key_event.code == KeyCode::Char('s') || key_event.code == KeyCode::Char('S') || key_event.code == KeyCode::Down{
                         // stdout.queue(Print("down\n"))?;
+                        grid = move_red(grid.clone(), 3);
                     }
 
                     if key_event.code == KeyCode::Left {
@@ -97,15 +104,42 @@ fn print_grid(grid: Vec<Vec<i8>>) {
     }
 }
 
-fn move_red(grid: Vec<Vec<i8>>, direction: i8) -> Vec<Vec<i8>> { //direction == 0: right, 1 - up, 2 - left, 3 - down
+fn move_red(grid: Vec<Vec<i8>>, direction: i8) -> Vec<Vec<i8>> { //direction == 0 - right, 1 - up, 2 - left, 3 - down
+    // check available directions
+    let mut available_dirs: Vec<bool> = vec![true; 4];
+    for (index_y, row) in grid.iter().enumerate() {
+        for (index_x, value) in row.iter().enumerate() {
+            if *value == 2 {
+                if index_x == 0 || row[index_x - 1] == 1 {
+                    available_dirs[2] = false;
+                }
+                else if index_x == FIELD_WIDTH - 1 || row[index_x + 1] == 1 {
+                    available_dirs[0] = false;
+                }
+                if index_y == 0 || grid[index_y - 1][index_x] == 1 {
+                    available_dirs[1] = false;
+                }
+                else if index_y == FIELD_HEIGHT - 1 || grid[index_y + 1][index_x] == 1{
+                    available_dirs[3] = false;
+                } 
+            }
+        }
+    }
+
+    if available_dirs[direction as usize] == false {
+        return grid
+    }
+
     let mut new_grid = vec![];
     if direction == 0 {
         for row in grid {
-            let mut new_row = row.clone();
+            let mut new_row = vec![0; row.len()]; // new row is just zeros
             for (index, value) in row.iter().enumerate() {
                 if *value == 2 && index != 9 {
                     new_row[index + 1] = 2;
-                    new_row[index] = 0;
+                }
+                else if *value == 1 {
+                    new_row[index] = 1;
                 }
             }
             new_grid.push(new_row);
@@ -113,14 +147,42 @@ fn move_red(grid: Vec<Vec<i8>>, direction: i8) -> Vec<Vec<i8>> { //direction == 
     }
     else if direction == 2 {
         for row in grid {
-            let mut new_row = row.clone();
+            let mut new_row = vec![0; row.len()]; // new row is just zeros
             for (index, value) in row.iter().enumerate() {
                 if *value == 2 && index != 0 {
                     new_row[index - 1] = 2;
-                    new_row[index] = 0;
+                }
+                else if *value == 1 {
+                    new_row[index] = 1;
                 }
             }
             new_grid.push(new_row);
+        }
+    }
+    else if direction == 3 {
+        new_grid = vec![vec![0; FIELD_WIDTH]; FIELD_HEIGHT];
+        for (index_y, row) in grid.iter().enumerate() {
+            for (index_x, value) in row.iter().enumerate() {
+                if *value == 2 {
+                    new_grid[index_y + 1][index_x] = 2;
+                }
+                else if *value == 1 {
+                    new_grid[index_y][index_x] = 1;
+                } 
+            }
+        }
+    }
+    else if direction == 1 {
+        new_grid = vec![vec![0; FIELD_WIDTH]; FIELD_HEIGHT];
+        for (index_y, row) in grid.iter().enumerate() {
+            for (index_x, value) in row.iter().enumerate() {
+                if *value == 2 {
+                    new_grid[index_y - 1][index_x] = 2;
+                }
+                else if *value == 1 {
+                    new_grid[index_y][index_x] = 1;
+                } 
+            }
         }
     }
     return new_grid;
