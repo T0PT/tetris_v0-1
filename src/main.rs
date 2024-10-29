@@ -10,6 +10,12 @@ use std::io::{stdout, Write};
     let mut stdout = stdout();
     stdout.execute(cursor::MoveTo(0, 0))?;
 
+    let row: Vec<i8> = vec![0; 10];
+    let mut grid: Vec<Vec<i8>>  = vec![row; 20];
+
+    grid[3][3] = 2;
+    print_grid(grid.clone());
+
     loop {
         let event = crossterm::event::read()?;
         // println!("Event: {:?}", event);
@@ -40,9 +46,10 @@ use std::io::{stdout, Write};
                 if key_event.code == KeyCode::Backspace {
                     stdout.queue(Clear(ClearType::All))?;
                     stdout.queue(cursor::MoveTo(0,0))?;
+                    print_grid(grid.clone());
                 }
             }           
-        } //🔳⬜
+        } //🔳⬜🟥
         stdout.flush()?;
 
         if event == Event::Key(KeyCode::Esc.into()) {
@@ -53,4 +60,21 @@ use std::io::{stdout, Write};
     stdout.execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;
     Ok(())
+}
+
+fn print_grid(grid: Vec<Vec<i8>>) {
+    for row in grid {
+        for cell in row {
+            if cell == 0 {
+                print!("🔳");
+            }
+            else if cell == 1{
+                print!("⬜");
+            }
+            else if cell == 2{
+                print!("🟥");
+            }
+        }
+        println!();
+    }
 }
