@@ -1,14 +1,13 @@
 use crossterm::{
-    cursor, event::{Event, KeyCode, KeyEventKind},
-    execute, 
-    terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen}, 
-    ExecutableCommand, QueueableCommand
+    cursor, event::{Event, KeyCode, KeyEventKind}, execute, style::Print, terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand, QueueableCommand
 };
 use std::{io::{stdout, Write}, vec};
 use std::time::{Duration, Instant};
 
 static FIELD_WIDTH: usize = 10;
 static FIELD_HEIGHT: usize = 20;
+
+static MESSAGE_DOWN: &str = "A - left, D - right, S/Down arrow - down"; 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode()?;
@@ -26,6 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     grid[19] = vec![1; FIELD_WIDTH];
     grid[18][9] = 1;
     print_grid(grid.clone());
+    stdout.execute(Print(MESSAGE_DOWN))?;
 
     let mut last_time = Instant::now();
 
@@ -72,6 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } //🔳⬜🟥
 
             print_grid(grid.clone());
+            stdout.queue(Print(MESSAGE_DOWN))?;
             stdout.flush()?;
 
             if event == Event::Key(KeyCode::Esc.into()) {
