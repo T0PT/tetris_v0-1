@@ -1,13 +1,14 @@
 use crossterm::{
-    event::{Event, KeyCode, KeyEventKind},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    cursor, event::{Event, KeyCode, KeyEventKind}, execute, style::Print, terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand, QueueableCommand
 };
-use std::io::{stdout};
+use std::io::{stdout, Write};
 
  fn main() -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode()?;
     execute!(stdout(), EnterAlternateScreen)?;
+
+    let mut stdout = stdout();
+    stdout.execute(cursor::MoveTo(0, 0))?;
 
     loop {
         let event = crossterm::event::read()?;
@@ -16,35 +17,40 @@ use std::io::{stdout};
             // println!("Key pressed: {:?}", key_event);
             if key_event.kind == KeyEventKind::Press {
                 if key_event.code == KeyCode::Char('a') || key_event.code == KeyCode::Char('A') {
-                    println!("left");
+                    stdout.queue(Print("left\n"))?;
                 }
                 else if key_event.code == KeyCode::Char('d') || key_event.code == KeyCode::Char('D') {
-                    println!("right");
+                    stdout.queue(Print("right\n"))?;
                 }
 
                 if key_event.code == KeyCode::Enter{
-                    println!("enter");
+                    stdout.queue(Print("enter\n"))?;
                 }
 
                 if key_event.code == KeyCode::Char('s') || key_event.code == KeyCode::Char('S') || key_event.code == KeyCode::Down{
-                    println!("down");
+                    stdout.queue(Print("down\n"))?;
                 }
 
                 if key_event.code == KeyCode::Left {
-                    println!("arrow left");
+                    stdout.queue(Print("arrow left\n"))?;
                 }
                 else if key_event.code == KeyCode::Right {
-                    println!("arrow right");
+                    stdout.queue(Print("arow right\n"))?;
                 }
-            }
+                if key_event.code == KeyCode::Backspace {
+                    stdout.queue(Clear(ClearType::All))?;
+                    stdout.queue(cursor::MoveTo(0,0))?;
+                }
+            }           
         } //🔳⬜
+        stdout.flush()?;
 
         if event == Event::Key(KeyCode::Esc.into()) {
             break;
         }
     }
 
-    execute!(stdout(), LeaveAlternateScreen)?;
+    stdout.execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;
     Ok(())
 }
