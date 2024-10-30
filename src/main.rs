@@ -1,13 +1,15 @@
 use crossterm::{
-    cursor, event::{Event, KeyCode, KeyEventKind}, execute, style::Print, terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand, QueueableCommand
+    cursor, event::{Event, KeyCode, KeyEventKind, poll}, execute, style::Print, terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand, QueueableCommand
 };
 use std::{io::{stdout, Write}, vec};
 use std::time::{Duration, Instant};
 
 static FIELD_WIDTH: usize = 10;
 static FIELD_HEIGHT: usize = 20;
+static TIME_OF_FRAME: u64 = 10; // in millis
+static FRAMES_BETWEEN_DOWN: i16 = 100;
 
-static MESSAGE_DOWN: &str = "A - left, D - right, S/Down arrow - down"; 
+static MESSAGE_DOWN: &str = "A - left, D - right\nS/Down arrow - down\nESC - exit";
 
 static SHAPES: [[[i8; 4]; 4]; 7] = [[[0, 1, 1, 0],[0, 1, 1, 0],[0, 0, 0, 0],[0, 0, 0, 0]], [[0, 1, 0, 0],[0, 1, 0, 0],[0, 1, 0, 0],[0, 1, 0, 0]], [[0, 1, 1, 0],[1, 1, 0, 0],[0, 0, 0, 0],[0, 0, 0, 0]], [[1, 1, 0, 0],[0, 1, 1, 0],[0, 0, 0, 0],[0, 0, 0, 0]], [[0, 1, 0, 0],[0, 1, 0, 0],[0, 1, 1, 0],[0, 0, 0, 0]], [[0, 0, 1, 0],[0, 0, 1, 0],[0, 1, 1, 0],[0, 0, 0, 0]], [[1, 1, 1, 0],[0, 1, 0, 0],[0, 0, 0, 0],[0, 0, 0, 0]]];
 
@@ -30,12 +32,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     stdout.execute(Print(MESSAGE_DOWN))?;
 
     let mut last_time = Instant::now();
+    let mut last_move_elapsed: i16 = 0;
+
+    let mut error_message: String = format!("");
 
     loop {
         let now = Instant::now();
         let elapsed = now.duration_since(last_time);
 
-        if elapsed >= Duration::from_millis(10) {
+        if elapsed >= Duration::from_millis(TIME_OF_FRAME) {
+            // add counter
+            last_move_elapsed += 1;
+
             // clear all
             stdout.queue(Clear(ClearType::All))?;
             stdout.queue(cursor::MoveTo(0,0))?;
@@ -43,69 +51,92 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // check available directions
             let mut av_dirs =  check_available_dirs(grid.clone());
 
-            // edit row if needed
-            let event = crossterm::event::read()?;
-            // println!("Event: {:?}", event);
-            if let Event::Key(key_event) = event {
-                // println!("Key pressed: {:?}", key_event);
-                if key_event.kind == KeyEventKind::Press {
-                    if key_event.code == KeyCode::Char('a') || key_event.code == KeyCode::Char('A') {
-                        // stdout.queue(Print("left\n"))?;
-                        if av_dirs[2] == true {
-                            grid = move_red(grid.clone(), 2);
+            // check if an event is available if not - pass
+            let available: bool = poll(Duration::from_secs(0))?;
+            if available == true {
+                let event = crossterm::event::read()?;
+                // println!("Event: {:?}", event);
+                if let Event::Key(key_event) = event {
+                    // println!("Key pressed: {:?}", key_event);
+                    if key_event.kind == KeyEventKind::Press {
+                        if key_event.code == KeyCode::Char('a') || key_event.code == KeyCode::Char('A') {
+                            // stdout.queue(Print("left\n"))?;
+                            if av_dirs[2] == true {
+                                grid = move_red(grid.clone(), 2);
+                            }
                         }
-                    }
-                    else if key_event.code == KeyCode::Char('d') || key_event.code == KeyCode::Char('D') {
-                        // stdout.queue(Print("right\n"))?;
-                        if av_dirs[0] == true {
-                            grid = move_red(grid.clone(), 0);
+                        else if key_event.code == KeyCode::Char('d') || key_event.code == KeyCode::Char('D') {
+                            // stdout.queue(Print("right\n"))?;
+                            if av_dirs[0] == true {
+                                grid = move_red(grid.clone(), 0);
+                            }
                         }
-                    }
 
-                    if key_event.code == KeyCode::Enter{
-                        // stdout.queue(Print("enter\n"))?;
-                        // grid = spawn_shape(grid.clone(), 0);
-                        loop {
+                        if key_event.code == KeyCode::Enter{
+                            // stdout.queue(Print("enter\n"))?;
+                            // grid = spawn_shape(grid.clone(), 0);
+                            loop {
+                                if av_dirs[3] == true {
+                                    grid = move_red(grid.clone(), 3);
+                                    av_dirs = check_available_dirs(grid.clone());
+                                }
+                                else {
+                                    grid = red_to_white(grid.clone());
+                                    grid = spawn_shape(grid.clone(), 0);
+                                    last_move_elapsed = 0;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if key_event.code == KeyCode::Char('s') || key_event.code == KeyCode::Char('S') || key_event.code == KeyCode::Down{
+                            // stdout.queue(Print("down\n"))?;
                             if av_dirs[3] == true {
                                 grid = move_red(grid.clone(), 3);
-                                av_dirs = check_available_dirs(grid.clone());
+                                last_move_elapsed = 0;
                             }
                             else {
                                 grid = red_to_white(grid.clone());
                                 grid = spawn_shape(grid.clone(), 0);
-                                break;
+                                last_move_elapsed = 0;
                             }
                         }
-                    }
 
-                    if key_event.code == KeyCode::Char('s') || key_event.code == KeyCode::Char('S') || key_event.code == KeyCode::Down{
-                        // stdout.queue(Print("down\n"))?;
-                        if av_dirs[3] == true {
-                            grid = move_red(grid.clone(), 3);
+                        if key_event.code == KeyCode::Left {
+                            // stdout.queue(Print("arrow left\n"))?;
                         }
-                    }
+                        else if key_event.code == KeyCode::Right {
+                            // stdout.queue(Print("arow right\n"))?;
+                        }
+                    }           
+                } //🔳⬜🟥
+                if event == Event::Key(KeyCode::Esc.into()) {
+                    break;
+                }
+    
+            }
 
-                    if key_event.code == KeyCode::Left {
-                        // stdout.queue(Print("arrow left\n"))?;
-                    }
-                    else if key_event.code == KeyCode::Right {
-                        // stdout.queue(Print("arow right\n"))?;
-                    }
-                }           
-            } //🔳⬜🟥
+            // error_message = format!("\n\n{}", last_move_elapsed);
+            // move if wait time between moves gets too long - move down
+            if last_move_elapsed >= FRAMES_BETWEEN_DOWN - 1 {
+                if av_dirs[3] == true {
+                    grid = move_red(grid.clone(), 3);
+                    last_move_elapsed = 0;
+                }
+                else {
+                    grid = red_to_white(grid.clone());
+                    grid = spawn_shape(grid.clone(), 0);
+                }
+            }
 
             print_grid(grid.clone());
             stdout.queue(Print(MESSAGE_DOWN))?;
+            stdout.queue(Print(&error_message))?;
             stdout.flush()?;
-
-            if event == Event::Key(KeyCode::Esc.into()) {
-                break;
-            }
 
             last_time = now;
         }        
     }
-
     stdout.execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;
     Ok(())
