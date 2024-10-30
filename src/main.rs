@@ -3,6 +3,7 @@ use crossterm::{
 };
 use std::{io::{stdout, Write}, vec};
 use std::time::{Duration, Instant};
+use rand::Rng;
 
 static FIELD_WIDTH: usize = 10;
 static FIELD_HEIGHT: usize = 20;
@@ -20,14 +21,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stdout = stdout();
     stdout.execute(cursor::MoveTo(0, 0))?;
 
+    let mut rng = rand::thread_rng();
+
     let row: Vec<i8> = vec![0; FIELD_WIDTH];
     let mut grid: Vec<Vec<i8>>  = vec![row; FIELD_HEIGHT];
 
     // grid[3][3] = 2;
-    grid[5][5] = 2;
-    grid[5][6] = 2;
-    grid[19] = vec![1; FIELD_WIDTH];
-    grid[18][9] = 1;
+    // grid[5][5] = 2;
+    // grid[5][6] = 2;
+    // grid[19] = vec![1; FIELD_WIDTH];
+    // grid[18][9] = 1;
+    grid = spawn_shape(grid, rng.gen_range(0..7));
     print_grid(grid.clone());
     stdout.execute(Print(MESSAGE_DOWN))?;
 
@@ -82,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                                 else {
                                     grid = red_to_white(grid.clone());
-                                    grid = spawn_shape(grid.clone(), 0);
+                                    grid = spawn_shape(grid.clone(), rng.gen_range(0..7));
                                     last_move_elapsed = 0;
                                     break;
                                 }
@@ -125,7 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 else {
                     grid = red_to_white(grid.clone());
-                    grid = spawn_shape(grid.clone(), 0);
+                    grid = spawn_shape(grid.clone(), rng.gen_range(0..7));
                 }
             }
 
