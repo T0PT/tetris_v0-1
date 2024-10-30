@@ -1,6 +1,7 @@
 use crossterm::{
     cursor, event::{Event, KeyCode, KeyEventKind, poll}, execute, style::Print, terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand, QueueableCommand
 };
+use core::error;
 use std::{io::{stdout, Write}, vec};
 use std::time::{Duration, Instant};
 use rand::Rng;
@@ -108,9 +109,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         if key_event.code == KeyCode::Left {
                             // stdout.queue(Print("arrow left\n"))?;
+                            // grid = rotate_red(grid.clone(), 3);
                         }
                         else if key_event.code == KeyCode::Right {
                             // stdout.queue(Print("arow right\n"))?;
+                            grid = rotate_red(grid.clone(), 1);
                         }
                     }           
                 } //🔳⬜🟥
@@ -161,6 +164,51 @@ fn print_grid(grid: Vec<Vec<i8>>) {
         }
         println!();
     }
+}
+
+fn rotate_red(grid: Vec<Vec<i8>>, times: i8) -> Vec<Vec<i8>> { // times = 1 - 90 degrees clockwise, 2 - 180 degrees, 3 - 270 clockwise
+    let mut final_grid: Vec<Vec<i8>> = grid.clone();
+    for i in 0..times {
+        let mut new_grid: Vec<Vec<i8>> = final_grid.clone();
+        let mut red_cells: [usize; 4]; red_cells = [127, 127, 0, 0]; // [y1, x1, y2, x2]
+        // find where are the red cells
+        for (index_y, row) in grid.iter().enumerate() {
+            for (index_x, value) in row.iter().enumerate() {
+                if *value == 2 {
+                    if index_y < red_cells[0] {
+                        red_cells[0] = index_y;
+                    }
+                    else if index_y > red_cells[2] {
+                        red_cells[2] = index_y;
+                    }
+                    if index_x < red_cells[1] {
+                        red_cells[1] = index_x;
+                    }
+                    else if index_x > red_cells[3] {
+                        red_cells[3] = index_x;
+                    }
+                    new_grid[index_y][index_x] = 0;
+                }
+            }
+        }
+        // transpose the matrix
+        let len_x = red_cells[3] - red_cells[1] + 1;
+        let len_y = red_cells[2] - red_cells[0] + 1;
+        for y in 0..len_x {
+            for x in 0..len_y {
+                new_grid[red_cells[0] + y][red_cells[1] + x] = grid[red_cells[0] + x][red_cells[1] + y];                
+            }
+        }
+        // reverse each row where red
+        let mut new_new_grid: Vec<Vec<i8>> = new_grid.clone();
+        for y in 0..len_x {
+            for x in 0..len_y + 1 {
+                new_new_grid[red_cells[0] + y][red_cells[1] + x] = new_grid[red_cells[0] + y][red_cells[1] + len_y - x];
+            }
+        }
+        final_grid = new_new_grid;
+    }
+    return final_grid;
 }
 
 fn red_to_white(grid: Vec<Vec<i8>>) -> Vec<Vec<i8>> {
