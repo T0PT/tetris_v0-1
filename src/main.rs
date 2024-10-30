@@ -9,6 +9,8 @@ static FIELD_HEIGHT: usize = 20;
 
 static MESSAGE_DOWN: &str = "A - left, D - right, S/Down arrow - down"; 
 
+static SHAPES: [[[i8; 4]; 4]; 7] = [[[0, 1, 1, 0],[0, 1, 1, 0],[0, 0, 0, 0],[0, 0, 0, 0]], [[0, 1, 0, 0],[0, 1, 0, 0],[0, 1, 0, 0],[0, 1, 0, 0]], [[0, 1, 1, 0],[1, 1, 0, 0],[0, 0, 0, 0],[0, 0, 0, 0]], [[1, 1, 0, 0],[0, 1, 1, 0],[0, 0, 0, 0],[0, 0, 0, 0]], [[0, 1, 0, 0],[0, 1, 0, 0],[0, 1, 1, 0],[0, 0, 0, 0]], [[0, 0, 1, 0],[0, 0, 1, 0],[0, 1, 1, 0],[0, 0, 0, 0]], [[1, 1, 1, 0],[0, 1, 0, 0],[0, 0, 0, 0],[0, 0, 0, 0]]];
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode()?;
     execute!(stdout(), EnterAlternateScreen)?;
@@ -19,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let row: Vec<i8> = vec![0; FIELD_WIDTH];
     let mut grid: Vec<Vec<i8>>  = vec![row; FIELD_HEIGHT];
 
-    grid[3][3] = 2;
+    // grid[3][3] = 2;
     grid[5][5] = 2;
     grid[5][6] = 2;
     grid[19] = vec![1; FIELD_WIDTH];
@@ -33,10 +35,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let now = Instant::now();
         let elapsed = now.duration_since(last_time);
 
-        if elapsed >= Duration::from_millis(33) {
+        if elapsed >= Duration::from_millis(10) {
             // clear all
             stdout.queue(Clear(ClearType::All))?;
             stdout.queue(cursor::MoveTo(0,0))?;
+
+            // check available directions
+            let mut av_dirs =  check_available_dirs(grid.clone());
 
             // edit row if needed
             let event = crossterm::event::read()?;
@@ -46,20 +51,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if key_event.kind == KeyEventKind::Press {
                     if key_event.code == KeyCode::Char('a') || key_event.code == KeyCode::Char('A') {
                         // stdout.queue(Print("left\n"))?;
-                        grid = move_red(grid.clone(), 2);
+                        if av_dirs[2] == true {
+                            grid = move_red(grid.clone(), 2);
+                        }
                     }
                     else if key_event.code == KeyCode::Char('d') || key_event.code == KeyCode::Char('D') {
                         // stdout.queue(Print("right\n"))?;
-                        grid = move_red(grid.clone(), 0);
+                        if av_dirs[0] == true {
+                            grid = move_red(grid.clone(), 0);
+                        }
                     }
 
                     if key_event.code == KeyCode::Enter{
                         // stdout.queue(Print("enter\n"))?;
+                        // grid = spawn_shape(grid.clone(), 0);
+                        loop {
+                            if av_dirs[3] == true {
+                                grid = move_red(grid.clone(), 3);
+                                av_dirs = check_available_dirs(grid.clone());
+                            }
+                            else {
+                                
+                                grid = spawn_shape(grid.clone(), 0);
+                                break;
+                            }
+                        }
                     }
 
                     if key_event.code == KeyCode::Char('s') || key_event.code == KeyCode::Char('S') || key_event.code == KeyCode::Down{
                         // stdout.queue(Print("down\n"))?;
-                        grid = move_red(grid.clone(), 3);
+                        if av_dirs[3] == true {
+                            grid = move_red(grid.clone(), 3);
+                        }
                     }
 
                     if key_event.code == KeyCode::Left {
@@ -105,9 +128,28 @@ fn print_grid(grid: Vec<Vec<i8>>) {
     }
 }
 
-fn move_red(grid: Vec<Vec<i8>>, direction: i8) -> Vec<Vec<i8>> { //direction == 0 - right, 1 - up, 2 - left, 3 - down
-    // check available directions
-    let mut available_dirs: Vec<bool> = vec![true; 4];
+fn spawn_shape(grid: Vec<Vec<i8>>, shape: i8) -> Vec<Vec<i8>> {
+    let mut new_grid = grid.clone();
+    let to_add = SHAPES[shape as usize].clone();
+    for (index_y, row) in grid.iter().enumerate() {
+        for (index_x, value) in row.iter().enumerate() {
+            if index_y < 4 {
+                if index_x > 2 && index_x < 7 {
+                    if *value != 0 && to_add[index_y][index_x - 3] == 1 {
+                        return grid
+                    }
+                    else if to_add[index_y][index_x - 3] == 1 {
+                        new_grid[index_y][index_x] = 2
+                    }
+                }
+            }
+        }
+    }
+    return new_grid;
+}
+
+fn check_available_dirs(grid: Vec<Vec<i8>>) -> [bool; 4] {
+    let mut available_dirs: [bool; 4] = [true; 4];
     for (index_y, row) in grid.iter().enumerate() {
         for (index_x, value) in row.iter().enumerate() {
             if *value == 2 {
@@ -126,11 +168,10 @@ fn move_red(grid: Vec<Vec<i8>>, direction: i8) -> Vec<Vec<i8>> { //direction == 
             }
         }
     }
+    return available_dirs
+}
 
-    if available_dirs[direction as usize] == false {
-        return grid
-    }
-
+fn move_red(grid: Vec<Vec<i8>>, direction: i8) -> Vec<Vec<i8>> { //direction == 0 - right, 1 - up, 2 - left, 3 - down
     let mut new_grid = vec![];
     if direction == 0 {
         for row in grid {
