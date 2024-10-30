@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 av_dirs = check_available_dirs(grid.clone());
                             }
                             else {
-                                
+                                grid = red_to_white(grid.clone());
                                 grid = spawn_shape(grid.clone(), 0);
                                 break;
                             }
@@ -126,6 +126,18 @@ fn print_grid(grid: Vec<Vec<i8>>) {
         }
         println!();
     }
+}
+
+fn red_to_white(grid: Vec<Vec<i8>>) -> Vec<Vec<i8>> {
+    let mut new_grid = grid.clone();
+    for (index_y, row) in grid.iter().enumerate() {
+        for (index_x, value) in row.iter().enumerate() {
+            if *value == 2 {
+                new_grid[index_y][index_x] = 1;
+            }
+        }
+    }
+    return new_grid;
 }
 
 fn spawn_shape(grid: Vec<Vec<i8>>, shape: i8) -> Vec<Vec<i8>> {
