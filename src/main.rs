@@ -134,6 +134,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
+            // clean all white lines
+            grid = clean_white_lines(grid.clone());
+
             // clear all
             stdout.queue(Clear(ClearType::All))?;
             stdout.queue(cursor::MoveTo(0,0))?;
@@ -165,6 +168,28 @@ fn print_grid(grid: Vec<Vec<i8>>) {
         }
         println!();
     }
+}
+
+fn clean_white_lines(grid: Vec<Vec<i8>>) -> Vec<Vec<i8>> {
+    let mut new_grid: Vec<Vec<i8>> = grid.clone();
+    let mut lines_to_clean: Vec<usize> = vec![];
+    for (index_y, row) in grid.iter().enumerate() {
+        let mut is_white: bool = true;
+        for value in row {
+            if *value == 0 {
+                is_white = false;
+                break;
+            }
+        }
+        if is_white == true {
+            lines_to_clean.push(index_y);
+        }
+    }
+    for line in lines_to_clean {
+        new_grid.remove(line);
+        new_grid.insert(0, vec![0; FIELD_WIDTH]);
+    }
+    return new_grid;
 }
 
 fn rotate_red(grid: Vec<Vec<i8>>) -> Vec<Vec<i8>> { // 90 degrees clockwise
