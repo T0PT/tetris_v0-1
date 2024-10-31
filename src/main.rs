@@ -39,6 +39,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut last_move_elapsed: i16 = 0;
 
     let mut error_message: String = format!("");
+    let mut score: i32 = 0;
+    let mut game_over: bool = false;
 
     loop {
         let now = Instant::now();
@@ -58,7 +60,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let event = crossterm::event::read()?;
                 // println!("Event: {:?}", event);
                 if let Event::Key(key_event) = event {
-                    // println!("Key pressed: {:?}", key_event);
+                    if game_over == false {
+                        // println!("Key pressed: {:?}", key_event);
                     if key_event.kind == KeyEventKind::Press {
                         if key_event.code == KeyCode::Char('a') || key_event.code == KeyCode::Char('A') {
                             // stdout.queue(Print("left\n"))?;
@@ -75,7 +78,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         if key_event.code == KeyCode::Enter{
                             // stdout.queue(Print("enter\n"))?;
-                            // grid = spawn_shape(grid.clone(), 0);
                             loop {
                                 if av_dirs[3] == true {
                                     grid = move_red(grid.clone(), 3);
@@ -83,7 +85,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                                 else {
                                     grid = red_to_white(grid.clone());
-                                    grid = spawn_shape(grid.clone(), rng.gen_range(0..7));
+                                    let new_grid = spawn_shape(grid.clone(), rng.gen_range(0..7));
+                                    if new_grid == grid {
+                                        game_over = true;
+                                    }
+                                    else {
+                                        grid = new_grid;
+                                    }
+                                    score += 1;
                                     last_move_elapsed = 0;
                                     break;
                                 }
@@ -98,7 +107,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                             else {
                                 grid = red_to_white(grid.clone());
-                                grid = spawn_shape(grid.clone(), 0);
+                                let new_grid = spawn_shape(grid.clone(), rng.gen_range(0..7));
+                                if new_grid == grid {
+                                    game_over = true;
+                                }
+                                else {
+                                    grid = new_grid;
+                                }
+                                score += 1;
                                 last_move_elapsed = 0;
                             }
                         }
@@ -114,7 +130,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             grid = rotate_red(grid.clone());
                         }
                     }           
-                } //🔳⬜🟥
+                    } //🔳⬜🟥
+                }
+                    
                 if event == Event::Key(KeyCode::Esc.into()) {
                     break;
                 }
@@ -123,16 +141,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // error_message = format!("\n\n{}", last_move_elapsed);
             // move if wait time between moves gets too long - move down
-            if last_move_elapsed >= FRAMES_BETWEEN_DOWN - 1 {
-                if av_dirs[3] == true {
-                    grid = move_red(grid.clone(), 3);
-                    last_move_elapsed = 0;
-                }
-                else {
-                    grid = red_to_white(grid.clone());
-                    grid = spawn_shape(grid.clone(), rng.gen_range(0..7));
+            if game_over == false {
+                if last_move_elapsed >= FRAMES_BETWEEN_DOWN - 1 {
+                    if av_dirs[3] == true {
+                        grid = move_red(grid.clone(), 3);
+                        last_move_elapsed = 0;
+                    }
+                    else {
+                        grid = red_to_white(grid.clone());
+                        let new_grid = spawn_shape(grid.clone(), rng.gen_range(0..7));
+                        if new_grid == grid {
+                            game_over = true;
+                        }
+                        else {
+                            grid = new_grid;
+                        }
+                        score += 1;
+                    }
                 }
             }
+            
 
             // clean all white lines
             grid = clean_white_lines(grid.clone());
@@ -142,12 +170,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             stdout.queue(cursor::MoveTo(0,0))?;
             print_grid(grid.clone());
             stdout.queue(Print(MESSAGE_DOWN))?;
+            stdout.queue(Print(format!("\n\nSCORE: {}", score)))?;
+            // error_message = format!("\n\n{}", game_over);
             stdout.queue(Print(&error_message))?;
+            if game_over {
+                stdout.queue(Print("\n\n   ___    _    __  __  ___    ___ __   __ ___  ___ \n  / __|  /_\\  |  \\/  || __|  / _ \\\\ \\ / /| __|| _ \\\n | (_ | / _ \\ | |\\/| || _|  | (_) |\\ V / | _| |   /\n  \\___|/_/ \\_\\|_|  |_||___|  \\___/  \\_/  |___||_|_\\\n"))?;              
+            }
             stdout.flush()?;
 
             last_time = now;
         }        
     }
+
     stdout.execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;
     Ok(())
